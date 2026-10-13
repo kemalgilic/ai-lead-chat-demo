@@ -49,6 +49,24 @@ production, set the real environment variables through your host/PHP-FPM config 
 3. Test: click "Listen for test event", set `N8N_WEBHOOK_URL` to the **test** URL, chat once.
    For production publish the workflow and use the production URL.
 
+## Speed-to-Lead workflow
+
+`n8n/speed-to-lead-agent.json` is a separate, more advanced demo workflow: an inbound form lead is
+normalized, checked by input guardrails, scored and drafted by an LLM agent, checked by output
+guardrails, routed by priority tier (hot/warm/cold), and hot leads go through a Slack approve-and-send
+step before a reply goes out.
+
+To import it:
+1. In n8n, go to **Workflows -> Import from File** and select `n8n/speed-to-lead-agent.json`.
+2. The workflow imports as **inactive** — review it before activating.
+3. Assign credentials yourself after import: the Slack, OpenAI, Anthropic, and Gmail nodes have no
+   credentials attached. Re-attach your own for each node that uses them.
+4. The two Gmail nodes (`Send Templated Nurture Email`, `Send Personalized Reply`) are **disabled**
+   in this demo — enable them only once you've reviewed what they send and to whom.
+5. Create these n8n Data Tables before running the workflow, with columns matching what each node
+   writes/reads: `leads_log`, `guardrail_incidents`, `lead_assessments`, `sent_log`,
+   `nurture_sequence`.
+
 ## Security notes
 - No API key in front-end code; the widget only knows the backend URL.
 - Widget renders model output with `textContent` (no XSS).

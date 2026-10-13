@@ -1,0 +1,1365 @@
+{
+  "name": "Speed-to-Lead Agent — Gilic Systems Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Book a Demo — Gilic Systems",
+        "formDescription": "Tell us about your business and what you're looking to automate.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Full Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Work Email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Company Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Company Website"
+            },
+            {
+              "fieldLabel": "What are you looking to automate?",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "buttonLabel": "Request a Demo"
+        }
+      },
+      "id": "e9ee818f-de13-4234-8817-e1c19a379500",
+      "name": "New Inbound Lead",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const freeEmailDomains = ['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','aol.com','gmx.com'];\nconst item = $input.first().json;\n\nconst email = (item['Work Email'] || '').trim().toLowerCase();\nconst domain = email.split('@')[1] || '';\n\nreturn [{\n  json: {\n    lead_id: $workflow.id + '-' + Date.now(),\n    full_name: item['Full Name'],\n    work_email: email,\n    email_domain: domain,\n    is_free_email_domain: freeEmailDomains.includes(domain),\n    company_name: item['Company Name'],\n    company_website: item['Company Website'] || '',\n    message: item['What are you looking to automate?'],\n    source: 'website_form',\n    submitted_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "c5c17655-10fd-4b89-9280-abf3fdf75941",
+      "name": "Normalize & Flag Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "MTRCobqLhRljWgtP",
+          "mode": "list",
+          "cachedResultName": "leads_log"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "keyValue": "={{ $json.email }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "message": "={{ $('Normalize & Flag Lead').item.json.message }}",
+            "email": "={{ $('Normalize & Flag Lead').item.json.work_email }}",
+            "name": "={{ $('Normalize & Flag Lead').item.json.full_name }}",
+            "company": "={{ $('Normalize & Flag Lead').item.json.company_name }}",
+            "source": "={{ $('Normalize & Flag Lead').item.json.source }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "0e744243-acd4-4095-947f-f6d79059b70c",
+      "name": "Upsert Lead Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        704,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.message }}",
+        "guardrails": {}
+      },
+      "id": "cedc5c51-3013-42a8-a1e4-12beedad753d",
+      "name": "Input Guardrails",
+      "type": "@n8n/n8n-nodes-langchain.guardrails",
+      "typeVersion": 1,
+      "position": [
+        928,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.checks || []).length === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "id": "09228c5f-4c57-40e4-9dd8-e8ce0482cbda"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "97728fd9-9016-4ebf-a38f-af7bd6a924df",
+      "name": "Input Guardrail Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#gilic-ops-alerts"
+        },
+        "text": "=⚠️ Inbound form submission blocked by input guardrails.\n*Company:* {{ $('Normalize & Flag Lead').item.json.company_name }}\n*Email:* {{ $('Normalize & Flag Lead').item.json.work_email }}\n*Reason:* {{ $json.reason }}",
+        "otherOptions": {}
+      },
+      "id": "4592583f-fcd3-488b-b5b8-20b870adbf2b",
+      "name": "Alert: Suspicious Submission",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1648,
+        928
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "rL1khNlGVaDDInap",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "lORHxM52q8LZUXRL",
+          "mode": "list",
+          "cachedResultName": "guardrail_incidents"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Normalize & Flag Lead').item.json.work_email }}",
+            "name": "={{ $('Normalize & Flag Lead').item.json.full_name }}",
+            "company": "={{ $('Normalize & Flag Lead').item.json.company_name }}",
+            "message": "={{ $('Normalize & Flag Lead').item.json.message }}",
+            "source": "blocked_by_input_guardrail"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "9f752ca1-9eac-4303-8f6a-5d2e5abff0e0",
+      "name": "Log Blocked Submission",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "6650c323-b896-4187-9f6b-a63227b75d3e",
+      "name": "GPT-4.1 mini (Fast/Cheap)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1520,
+        752
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "sPpZhDj8tF5jhrFl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1"
+        },
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "98c39142-a66c-4b31-838b-20be5cf52c7e",
+      "name": "GPT-4.1 (Drafting Quality)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1648,
+        752
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "sPpZhDj8tF5jhrFl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rule": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ee6fe039-022d-4fa5-b18b-72ae95f2ac7a",
+                    "leftValue": "={{ ($('Normalize & Flag Lead').item.json.message || '').length }}",
+                    "rightValue": 150,
+                    "operator": {
+                      "type": "number",
+                      "operation": "lt"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "modelIndex": 2,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7840eeea-9ac8-4d00-b341-ef50af7240a2",
+                    "leftValue": "={{ ($('Normalize & Flag Lead').item.json.message || '').length }}",
+                    "rightValue": 150,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        }
+      },
+      "id": "989aee8a-0572-4eb9-ab1b-cebce9087363",
+      "name": "Model Router",
+      "type": "@n8n/n8n-nodes-langchain.modelSelector",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"fit_score\": {\"type\": \"number\"},\n    \"intent_score\": {\"type\": \"number\"},\n    \"priority_tier\": {\"type\": \"string\", \"enum\": [\"hot\",\"warm\",\"cold\"]},\n    \"reasoning\": {\"type\": \"string\"},\n    \"draft_reply\": {\"type\": \"string\"},\n    \"suggested_meeting_slots\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}\n  },\n  \"required\": [\"fit_score\",\"intent_score\",\"priority_tier\",\"reasoning\",\"draft_reply\"]\n}"
+      },
+      "id": "50ec3fba-4a22-490b-942d-c6bcf51963ab",
+      "name": "Lead Assessment Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1792,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=   Name: {{ $('Normalize & Flag Lead').item.json.full_name }}\n   Firma: {{ $('Normalize & Flag Lead').item.json.company_name }}\n   Website: {{ $('Normalize & Flag Lead').item.json.company_website }}\n   E-Mail: {{ $('Normalize & Flag Lead').item.json.work_email }}\n   Nachricht: {{ $('Normalize & Flag Lead').item.json.message }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Lead Orchestrator for Gilic Systems' inbound sales pipeline.\n\nInput: a raw inbound lead (name, company name, website, work email, and a free-text description of what they want to automate).\n\nYour job:\n1. Assess the lead from the provided data only. Do not invent facts about the company. If you only know the company from its name and website, say so in the reasoning.\n2. Give fit_score and intent_score as integers from 0 to 100. Fit measures how well the company matches an automation project (clear process, business email, concrete use case). Intent measures how concrete and urgent the request is.\n3. Set priority_tier using these rules, checked in this order:\n   - fit_score >= 70 AND intent_score >= 60: \"hot\"\n   - otherwise, fit_score >= 30: \"warm\"\n   - otherwise (fit_score < 30): \"cold\"\n4. Write 'reasoning': one or two sentences explaining the tier decision, specific to this lead.\n5. Write 'draft_reply': a short, specific first-reply email to the lead (max 120 words), in English, referencing what they asked for. Do not mention pricing, discounts or guarantees.\n\nRules:\n- Never invent pricing, discounts, or guarantees.\n- Never copy example or placeholder values from the schema.\n- Use real line breaks in draft_reply, never a literal \\n.\n- Sign the email as \"Kemal, Gilic Systems\". Never use placeholders like [Your Name].\n- Return all fields of the required structured output."
+        }
+      },
+      "id": "d318745c-d5aa-4d23-85da-4720ab1929da",
+      "name": "Lead Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        1616,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.output.draft_reply }}",
+        "guardrails": {}
+      },
+      "id": "230740cc-c0ec-4b8f-a8d1-ed02f7a8aded",
+      "name": "Output Guardrails",
+      "type": "@n8n/n8n-nodes-langchain.guardrails",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.checks || []).length === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "id": "0a685220-21fd-495f-95eb-b4a657a5c829"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ec4ffcc8-6949-48cd-9a02-73766b984d22",
+      "name": "Output Guardrail Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2352,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "needs_manual_rewrite",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "name": "guardrail_failure_reason",
+              "type": "string",
+              "value": "={{ $json.reason }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ed9ec66b-0e33-4ef1-9311-a6bdd457f8ba",
+      "name": "Flag Draft For Manual Rewrite",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2576,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#gilic-ops-alerts"
+        },
+        "text": "=⚠️ AI-drafted reply for {{ $('Normalize & Flag Lead').item.json.company_name }} failed output guardrails ({{ $json.guardrail_failure_reason }}). Please write this reply manually.",
+        "otherOptions": {}
+      },
+      "id": "a4ee0d54-0d85-457a-9d27-1c21540c94b4",
+      "name": "Alert: Draft Failed Guardrails",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2800,
+        624
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "rL1khNlGVaDDInap",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "iV1hzQy5yQ3xsfha",
+          "mode": "list",
+          "cachedResultName": "lead_assessments"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Normalize & Flag Lead').item.json.work_email }}",
+            "score": "={{ String($('Lead Orchestrator Agent').item.json.output.fit_score) }}",
+            "tier": "={{ $('Lead Orchestrator Agent').item.json.output.priority_tier }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "tier",
+              "displayName": "tier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "56a75613-1f66-439c-be12-fef5651bcc9d",
+      "name": "Log Assessment (Audit + Eval)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Lead Orchestrator Agent').item.json.output.priority_tier }}",
+                    "rightValue": "hot",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "95c993f0-38d6-44fa-88bf-94f1ea94a5f6"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Lead Orchestrator Agent').item.json.output.priority_tier }}",
+                    "rightValue": "warm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e00bd7e9-b83e-4861-b4f2-4e95de2be1a0"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Lead Orchestrator Agent').item.json.output.priority_tier }}",
+                    "rightValue": "cold",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8c8bcc56-75b7-4716-8b68-dd5ce1e59a98"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "cold"
+        }
+      },
+      "id": "13fdd6d3-ddf5-4d82-b92f-de5326444bad",
+      "name": "Route by Priority Tier",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#gilic-ops-alerts",
+          "mode": "name"
+        },
+        "text": "=🔥 *Hot lead*\n*Company:* {{ $('Normalize & Flag Lead').item.json.company_name }}\n*Contact:* {{ $('Normalize & Flag Lead').item.json.full_name }} ({{ $('Normalize & Flag Lead').item.json.work_email }})\n*Fit score:* {{ $('Lead Orchestrator Agent').item.json.output.fit_score }} · *Intent:* {{ $('Lead Orchestrator Agent').item.json.output.intent_score }}\n*Why:* {{ $('Lead Orchestrator Agent').item.json.output.reasoning }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "dc32ab56-4897-400c-a265-1e12f47b4de8",
+      "name": "Hot Lead Alert (Sales Channel)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        3024,
+        320
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "rL1khNlGVaDDInap",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#gilic-ops-alerts",
+          "mode": "name"
+        },
+        "message": "=Approve sending this reply to {{ $('Normalize & Flag Lead').item.json.full_name }} at {{ $('Normalize & Flag Lead').item.json.company_name }}?\n\n{{ $('Lead Orchestrator Agent').item.json.output.draft_reply }}",
+        "approvalOptions": {
+          "values": {
+            "approveLabel": "Approve & Send"
+          }
+        },
+        "options": {}
+      },
+      "id": "dac588d6-7aaa-4f8e-a8a6-16ba2dfe7f5f",
+      "name": "Approve Outreach Draft? (Send & Wait)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        3248,
+        320
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "rL1khNlGVaDDInap",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "98ff4688-23a0-4cc9-8c97-c0a1514f920d",
+      "name": "Approved by Rep?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3472,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "CDsdBD9izlHQO8dz",
+          "mode": "list",
+          "cachedResultName": "sent_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Normalize & Flag Lead').item.json.work_email }}",
+            "status": "approved",
+            "approved_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "approved_at",
+              "displayName": "approved_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "df5a25e0-b3b5-439d-af41-7ab0b211508e",
+      "name": "Log Sent + Response Time",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3920,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#gilic-ops-alerts"
+        },
+        "text": "=Draft rejected for {{ $('Normalize & Flag Lead').item.json.company_name }}. Please reply manually — the lead is still waiting.",
+        "otherOptions": {}
+      },
+      "id": "8632e63c-ea76-45d4-a51b-6875e2e3bb6f",
+      "name": "Notify Rep: Handle Manually",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        3696,
+        416
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "rL1khNlGVaDDInap",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "nurture_sequence"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $('Normalize & Flag Lead').item.json.lead_id }}",
+            "work_email": "={{ $('Normalize & Flag Lead').item.json.work_email }}",
+            "stage": "touch_1",
+            "added_at": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "741c94e4-6292-49ca-9034-6fa408e0112d",
+      "name": "Add Lead to Nurture Sequence",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Normalize & Flag Lead').item.json.work_email }}",
+        "subject": "=Thanks for reaching out, {{ $('Normalize & Flag Lead').item.json.full_name }}",
+        "message": "={{ $('Lead Orchestrator Agent').item.json.output.draft_reply }}",
+        "options": {}
+      },
+      "id": "3bb5cc70-8520-428f-af7d-a989d5297938",
+      "name": "Send Templated Nurture Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3248,
+        512
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XG1sM64emGe1t3nD",
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "nurture_sequence"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "last_touch_at": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "8750e5ec-0c44-402f-b444-afb5136247f2",
+      "name": "Log Nurture Touch",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3472,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "leads_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "priority_tier": "cold",
+            "archived_at": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "26d6d882-3384-4f40-a665-fca9d350bea1",
+      "name": "Log & Archive (No Action)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-6",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.4,
+      "position": [
+        1008,
+        1040
+      ],
+      "id": "9934f9bb-9853-4b70-8868-9155448c7ac9",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "4cdJtJkDWwY8tlds",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-6",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.4,
+      "position": [
+        2096,
+        640
+      ],
+      "id": "4f79a379-acdb-4671-9f5e-39787b1e484c",
+      "name": "Anthropic Chat Model1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "4cdJtJkDWwY8tlds",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Normalize & Flag Lead').item.json.work_email }}",
+        "subject": "=Re: {{ $('Normalize & Flag Lead').item.json.company_name }} — quick reply",
+        "message": "={{ $('Lead Orchestrator Agent').item.json.output.draft_reply }}",
+        "options": {}
+      },
+      "id": "d08a4458-b092-49b5-b184-fc9607e84128",
+      "name": "Send Personalized Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3712,
+        240
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XG1sM64emGe1t3nD",
+          "name": "Gmail account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "New Inbound Lead": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Flag Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Flag Lead": {
+      "main": [
+        [
+          {
+            "node": "Upsert Lead Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Lead Record": {
+      "main": [
+        [
+          {
+            "node": "Input Guardrails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Guardrails": {
+      "main": [
+        [
+          {
+            "node": "Input Guardrail Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Guardrail Passed?": {
+      "main": [
+        [
+          {
+            "node": "Lead Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert: Suspicious Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert: Suspicious Submission": {
+      "main": [
+        [
+          {
+            "node": "Log Blocked Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4.1 mini (Fast/Cheap)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Model Router",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4.1 (Drafting Quality)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Model Router",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Model Router": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Lead Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Assessment Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Lead Orchestrator Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Output Guardrails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Guardrails": {
+      "main": [
+        [
+          {
+            "node": "Output Guardrail Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Guardrail Passed?": {
+      "main": [
+        [
+          {
+            "node": "Log Assessment (Audit + Eval)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag Draft For Manual Rewrite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag Draft For Manual Rewrite": {
+      "main": [
+        [
+          {
+            "node": "Alert: Draft Failed Guardrails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Assessment (Audit + Eval)": {
+      "main": [
+        [
+          {
+            "node": "Route by Priority Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Priority Tier": {
+      "main": [
+        [
+          {
+            "node": "Hot Lead Alert (Sales Channel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add Lead to Nurture Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log & Archive (No Action)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot Lead Alert (Sales Channel)": {
+      "main": [
+        [
+          {
+            "node": "Approve Outreach Draft? (Send & Wait)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve Outreach Draft? (Send & Wait)": {
+      "main": [
+        [
+          {
+            "node": "Approved by Rep?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved by Rep?": {
+      "main": [
+        [
+          {
+            "node": "Send Personalized Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Rep: Handle Manually",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Lead to Nurture Sequence": {
+      "main": [
+        [
+          {
+            "node": "Send Templated Nurture Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Templated Nurture Email": {
+      "main": [
+        [
+          {
+            "node": "Log Nurture Touch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Input Guardrails",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Output Guardrails",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Personalized Reply": {
+      "main": [
+        [
+          {
+            "node": "Log Sent + Response Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": []
+}
