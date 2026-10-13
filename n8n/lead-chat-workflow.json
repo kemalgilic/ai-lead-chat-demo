@@ -1,0 +1,105 @@
+{
+  "name": "Chat Lead Intake - Qualify, Score, Route",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "n1",
+      "name": "Chat Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "lead-chat-demo"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body || $input.first().json;\nconst free = ['gmail.com','yahoo.com','outlook.com','hotmail.com','gmx.de','icloud.com'];\nconst email = String(b.email || '').toLowerCase().trim();\nconst domain = email.split('@')[1] || '';\nlet score = 0;\nscore += ({ high: 40, medium: 20, low: 5 })[b.urgency] ?? 10;\nif (email && !free.includes(domain)) score += 20;\nif (b.phone) score += 10;\nif (b.preferred_time) score += 15;\nif (String(b.need || '').length > 30) score += 15;\nconst tier = score >= 70 ? 'hot' : score >= 40 ? 'warm' : 'cold';\nreturn [{ json: { name: b.name || '', email, phone: b.phone || '', need: b.need || '', urgency: b.urgency || 'unknown', preferred_time: b.preferred_time || '', source: b.source || 'website_chat', session_id: b.session_id || '', score, tier, received_at: new Date().toISOString() } }];"
+      },
+      "id": "n2",
+      "name": "Score and Tier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.tier }}",
+              "rightValue": "hot",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n3",
+      "name": "Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "#gilic-ops-alerts", "mode": "name" },
+        "text": "=:fire: *Hot chat lead* (score {{ $json.score }})\n*Name:* {{ $json.name }}\n*Email:* {{ $json.email }}\n*Need:* {{ $json.need }}\n*Urgency:* {{ $json.urgency }}\n*Preferred time:* {{ $json.preferred_time || 'n/a' }}",
+        "otherOptions": { "includeLinkToWorkflow": false }
+      },
+      "id": "n4",
+      "name": "Slack: Hot Lead Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [720, -100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "status", "value": "queued_for_nurture", "type": "string" }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "n5",
+      "name": "Queue for Nurture",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [720, 120]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, tier: $('Score and Tier').item.json.tier, score: $('Score and Tier').item.json.score } }}",
+        "options": {}
+      },
+      "id": "n6",
+      "name": "Respond to Backend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 0]
+    }
+  ],
+  "connections": {
+    "Chat Lead Webhook": { "main": [[{ "node": "Score and Tier", "type": "main", "index": 0 }]] },
+    "Score and Tier": { "main": [[{ "node": "Hot Lead?", "type": "main", "index": 0 }]] },
+    "Hot Lead?": {
+      "main": [
+        [{ "node": "Slack: Hot Lead Alert", "type": "main", "index": 0 }],
+        [{ "node": "Queue for Nurture", "type": "main", "index": 0 }]
+      ]
+    },
+    "Slack: Hot Lead Alert": { "main": [[{ "node": "Respond to Backend", "type": "main", "index": 0 }]] },
+    "Queue for Nurture": { "main": [[{ "node": "Respond to Backend", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
